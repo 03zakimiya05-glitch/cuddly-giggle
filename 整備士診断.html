@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>クルマ愛＆メカニック適性診断</title>
+    <style>
+        /* ベース設定 */
+        :root {
+            --primary-color: #ff6600; /* オレンジ */
+            --bg-color: #0d0d0f; /* ほぼ黒 */
+            --accent-color: #00ffff; /* サイバーブルー（回路図用） */
+            --text-color: #fff;
+            --panel-bg: rgba(255, 255, 255, 0.08); /* ガラスモーフィズム */
+            --btn-start-bg: linear-gradient(135deg, #ff6600 0%, #e65c00 100%);
+            --btn-stop-bg: linear-gradient(135deg, #444 0%, #222 100%);
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden; /* スクロール禁止（アプリ感を出すため） */
+            
+            /* 背景: 複雑なメカ×サイバーパターン */
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(255, 102, 0, 0.15) 0%, transparent 30%),
+                radial-gradient(circle at 90% 90%, rgba(0, 255, 255, 0.08) 0%, transparent 30%),
+                repeating-linear-gradient(rgba(0,0,0,0.5) 0px, rgba(0,0,0,0.5) 1px, transparent 1px, transparent 100px),
+                repeating-linear-gradient(90deg, rgba(0,0,0,0.5) 0px, rgba(0,0,0,0.5) 1px, transparent 1px, transparent 100px),
+                /* メカ・回路図風のパターン（CSSのみで表現） */
+                linear-gradient(var(--accent-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--accent-color) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 100% 100%, 20px 20px, 20px 20px;
+            background-opacity: 1, 1, 1, 1, 0.03, 0.03;
+        }
+
+        /* 診断コンテナ（スマホサイズ） */
+        #diag-container {
+            width: 90%;
+            max-width: 380px; /* iPhone SEなど小型スマホにも対応 */
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            position: relative;
+        }
+
+        /* ヘッダー */
+        header {
+            width: 100%;
+            text-align: center;
+            padding: 20px 0;
+        }
+        header h1 {
+            color: var(--primary-color);
+            font-size: 20px;
+            margin: 0;
+            text-shadow: 0 0 10px rgba(255,102,0,0.8);
+        }
+        header p {
+            font-size: 12px;
+            opacity: 0.8;
+            margin: 5px 0 0;
+        }
+
+        /* 質問エリア（ガラスモーフィズム） */
+        .question-card {
+            background-color: var(--panel-bg);
+            border-radius: 20px;
+            padding: 30px;
+            width: 100%;
+            box-sizing: border-box;
+            backdrop-filter: blur(15px); /* ガラス効果 */
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            
+            /* アニメーション用 */
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s, transform 0.5s;
+            display: none;
+        }
+        .question-card.active {
+            opacity: 1;
+            transform: translateY(0);
+            display: block;
+        }
+
+        .q-text {
+            font-weight: bold;
+            font-size: 17px;
+            line-height: 1.5;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        /* ボタンエリア（2択） */
+        .btn-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        /* メカニカルなボタン */
+        button {
+            border: none;
+            color: var(--text-color);
+            padding: 18px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.1s;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px; /* アイコンとテキストの間隔 */
+        }
+        button:active {
+            transform: scale(0.98);
+        }
+
+        /* 「はい」ボタン (メカ起動ボタン) */
+        button.btn-yes {
+            background: var(--btn-start-bg);
+            box-shadow: 0 0 15px rgba(255,102,0,0.6);
+            border: 1px solid rgba(255,102,0,0.5);
+        }
+        /* アイコン (ドライバーとギヤ) */
+        button.btn-yes::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="%23fff"><path d="M495.1 76.5c11.1 11.1 11.1 29 0 40.1L355.8 255.8c-11.1 11.1-29 11.1-40.1 0s-11.1-29 0-40.1L455 76.5c11.1-11.1 29-11.1 40.1 0zM128 176c0-44.2 35.8-80 80-80s80 35.8 80 80s-35.8 80-80 80s-80-35.8-80-80zm112.5-1.5c.3 .5 .5 1 .5 1.5c0 17.7-14.3 32-32 32s-32-14.3-32-32s14.3-32 32-32c1 0 1.9 .1 2.9 .2l14.3-14.3c-5.5-1.9-11.3-2.9-17.2-2.9C152.1 128 112 168.1 112 216s40.1 88 88 88s88-40.1 88-88c0-11.7-2.3-22.8-6.5-32.9L240.5 174.5zM48 216C21.5 216 0 237.5 0 264c0 11 3.7 21.1 10 29.1L96.1 411.3c8.1 10.3 20.3 16.7 33.4 17.5c1 0 2 0 3 0c14.6 0 28.5-6.5 37.9-17.6L229 347l6.8-6.8L183.1 287l-6.8 6.8L121 349.1 57.6 268.4C51.6 260.7 48 251.1 48 240.7s3.6-20.1 9.6-27.7l12.7-16.1 14.3 14.3-10 12.7C68.6 233.1 64 243.8 64 255.2s4.6 22.1 12.6 32.3l61.7 78.5L163.6 339c6.6-8.5 6.6-20.2 0-28.6L101.9 231.9 87.6 217.6 74.9 233.1l6.6 6.6-9.6 12.1C68.6 260.1 64 270.8 64 282.2s4.6 22.1 12.6 32.3l57.6 73.3L153 365l37.9-48.3c8.1-10.3 20.3-16.7 33.4-17.5c1 0 2 0 3 0c14.6 0 28.5 6.5 37.9 17.6L317 387.9c6.6 8.5 6.6 20.2 0 28.6L217 500c-8.1 10.3-20.3 16.7-33.4 17.5c-1 0-2 0-3 0c-14.6 0-28.5-6.5-37.9-17.6L101.9 412.1 87.6 397.9 74.9 413.3l12.7 16.1c11.1 11.1 29 11.1 40.1 0l38.2-38.2c11.1-11.1 11.1-29 0-40.1L128 312z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* 「いいえ」ボタン (cautionパネル) */
+        button.btn-no {
+            background: var(--btn-stop-bg);
+            border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+        /* アイコン (ストップサインとcaution) */
+        button.btn-no::before {
+            content: '';
+            width: 18px;
+            height: 18px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="%23fff"><path d="M256 512c141.4 0 256-114.6 256-256S397.4 0 256 0 0 114.6 0 256s114.6 256 256 256zM183.4 153.4L256 226.1l72.6-72.6c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3L301.3 271.4l72.6 72.6c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L256 316.7l-72.6 72.6c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l72.6-72.6-72.6-72.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        /* ステップインジケーター */
+        #step-indicator {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding-bottom: 20px;
+        }
+        .step-cog {
+            width: 25px;
+            height: 25px;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="%23ccc"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6l-44.3 119.3c-3.2 8.7-12.1 14.3-21.4 13.8l-58.3-3.4c-7.3 6.3-15.3 11.8-24 16.3l-18.2 55.4c-2.9 8.8-11.4 14.4-20.7 13.7L288 512H224L152.1 511.2c-9.3 .7-17.9-4.9-20.7-13.7l-18.2-55.4c-8.7-4.5-16.7-10.1-24-16.3l-58.3 3.4c-9.3 .5-18.2-5.1-21.4-13.8L5.4 346.1c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C54.1 273.9 53.4 265.4 53.4 256.7s.6-17.1 1.7-25.4l-43.3-39.4C4.9 185.6 2.2 175.9 5.4 167.2l44.3-119.3c3.2-8.7 12.1-14.3 21.4-13.8l58.3 3.4c7.3-6.3 15.3-11.8 24-16.3l18.2-55.4c2.9-8.8 11.4-14.4 20.7-13.7L224 0h64l71.9 .8c9.3-.7 17.9 4.9 20.7 13.7l18.2 55.4c8.7 4.5 16.7 10.1 24 16.3l58.3-3.4c9.3-.5 18.2 5.1 21.4 13.8l44.3 119.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+            opacity: 0.3;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .step-cog.active {
+            opacity: 1;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="%23ff6600"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6l-44.3 119.3c-3.2 8.7-12.1 14.3-21.4 13.8l-58.3-3.4c-7.3 6.3-15.3 11.8-24 16.3l-18.2 55.4c-2.9 8.8-11.4 14.4-20.7 13.7L288 512H224L152.1 511.2c-9.3 .7-17.9-4.9-20.7-13.7l-18.2-55.4c-8.7-4.5-16.7-10.1-24-16.3l-58.3 3.4c-9.3 .5-18.2-5.1-21.4-13.8L5.4 346.1c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C54.1 273.9 53.4 265.4 53.4 256.7s.6-17.1 1.7-25.4l-43.3-39.4C4.9 185.6 2.2 175.9 5.4 167.2l44.3-119.3c3.2-8.7 12.1-14.3 21.4-13.8l58.3 3.4c7.3-6.3 15.3-11.8 24-16.3l18.2-55.4c2.9-8.8 11.4-14.4 20.7-13.7L224 0h64l71.9 .8c9.3-.7 17.9 4.9 20.7 13.7l18.2 55.4c8.7 4.5 16.7 10.1 24 16.3l58.3-3.4c9.3-.5 18.2 5.1 21.4 13.8l44.3 119.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>');
+            transform: rotate(30deg);
+        }
+
+        /* 結果エリア */
+        #result-area {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s, transform 0.5s;
+        }
+        #result-area.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        #result-char {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 20px;
+            /* ここにAIで生成したキャラクターイラスト（透明背景推奨）を設置してください */
+            background-color: var(--panel-bg);
+            border-radius: 50%;
+            border: 2px solid var(--primary-color);
+            position: relative;
+        }
+        /* プレースホルダー（SVGでスパナ） */
+        #result-char::before {
+            content: '';
+            width: 70%;
+            height: 70%;
+            position: absolute;
+            top: 15%;
+            left: 15%;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="%23ff6600"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6l-44.3 119.3c-3.2 8.7-12.1 14.3-21.4 13.8l-58.3-3.4c-7.3 6.3-15.3 11.8-24 16.3l-18.2 55.4c-2.9 8.8-11.4 14.4-20.7 13.7L288 512H224L152.1 511.2c-9.3 .7-17.9-4.9-20.7-13.7l-18.2-55.4c-8.7-4.5-16.7-10.1-24-16.3l-58.3 3.4c-9.3 .5-18.2-5.1-21.4-13.8L5.4 346.1c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C54.1 273.9 53.4 265.4 53.4 256.7s.6-17.1 1.7-25.4l-43.3-39.4C4.9 185.6 2.2 175.9 5.4 167.2l44.3-119.3c3.2-8.7 12.1-14.3 21.4-13.8l58.3 3.4c7.3-6.3 15.3-11.8 24-16.3l18.2-55.4c2.9-8.8 11.4-14.4 20.7-13.7L224 0h64l71.9 .8c9.3-.7 17.9 4.9 20.7 13.7l18.2 55.4c8.7 4.5 16.7 10.1 24 16.3l58.3-3.4c9.3-.5 18.2 5.1 21.4 13.8l44.3 119.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>');
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+
+        #result-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(255,102,0,0.8);
+        }
+        #result-desc {
+            font-size: 15px;
+            line-height: 1.7;
+            text-align: left;
+            margin-bottom: 30px;
+            background-color: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        #reset-btn {
+            background-color: #555;
+            padding: 12px 24px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="diag-container">
+    <header>
+        <h1>君のクルマ愛を診断！</h1>
+        <p>メカニック適性チェック</p>
+    </header>
+
+    <div id="q1" class="question-card active">
+        <p class="q-text">Q1. 気になる機械があると、つい分解して中身を見てみたくなる？</p>
+        <div class="btn-container">
+            <button class="btn-yes" onclick="nextQuestion(1, 'A')">はい</button>
+            <button class="btn-no" onclick="nextQuestion(1, 'B')">いいえ</button>
+        </div>
+    </div>
+
+    <div id="q2" class="question-card">
+        <p class="q-text">Q2. 友達と協力して何かを達成するのが好き？</p>
+        <div class="btn-container">
+            <button class="btn-yes" onclick="nextQuestion(2, 'A')">はい</button>
+            <button class="btn-no" onclick="nextQuestion(2, 'B')">1人で黙々とやるのが好き</button>
+        </div>
+    </div>
+
+    <div id="q3" class="question-card">
+        <p class="q-text">Q3. 細かい作業や、間違い探しが得意？</p>
+        <div class="btn-container">
+            <button class="btn-yes" onclick="nextQuestion(3, 'A')">はい</button>
+            <button class="btn-no" onclick="nextQuestion(3, 'B')">大雑把だけどスピード重視</button>
+        </div>
+    </div>
+
+    <div id="result-area" class="question-card">
+        <div id="result-char">
+            </div>
+        <div id="result-title"></div>
+        <div id="result-desc"></div>
+        <button id="reset-btn" onclick="resetDiag()">最初に戻る</button>
+    </div>
+
+    <div id="step-indicator">
+        <div class="step-cog active" id="cog1"></div>
+        <div class="step-cog" id="cog2"></div>
+        <div class="step-cog" id="cog3"></div>
+    </div>
+</div>
+
+<script>
+    let answers = [];
+
+    function nextQuestion(qId, answer) {
+        // 回答を記録
+        answers[qId - 1] = answer;
+        
+        // 現在のカードを非アクティブに
+        document.getElementById(`q${qId}`).classList.remove('active');
+        
+        // インジケーターを更新
+        document.getElementById(`cog${qId}`).classList.remove('active');
+
+        if (qId < 3) {
+            // 次のカードとインジケーターをアクティブに
+            setTimeout(() => {
+                document.getElementById(`q${qId + 1}`).classList.add('active');
+                document.getElementById(`cog${qId + 1}`).classList.add('active');
+            }, 50); // アニメーションのためにわずかに遅らせる
+        } else {
+            // 結果を表示
+            showResult();
+        }
+    }
+
+    function showResult() {
+        const pattern = answers.join('');
+        let resultTitle = '';
+        let resultDesc = '';
+
+        if (pattern === 'AAA' || pattern === 'ABA' || pattern === 'BAA') {
+            resultTitle = 'とことん極める！探求心MAXの【職人肌メカニック】';
+            resultDesc = '複雑な故障の原因を突き止めた時が一番の快感。圧倒的な集中力と探求心で、誰もが認める技術のスペシャリストになれる素質があります！';
+        } else if (pattern === 'BAB' || pattern === 'BBA' || pattern === 'BBB') {
+            resultTitle = 'チームを引っ張る！笑顔の【リーダー型メカニック】';
+            resultDesc = 'チームワークを大切にし、全体の状況を見て動くのが得意。いずれはピット全体をまとめる頼れる工場長として、仲間から信頼される存在になるでしょう！';
+        } else if (pattern === 'AAB' || pattern === 'ABB') {
+            resultTitle = 'スピードと正確性を両立！【電光石火メカニック】';
+            resultDesc = '直感的な理解力と、無駄のない動きで、スピーディーかつ完璧な作業をこなします。ピンチの時ほど力を発揮する、チームのスーパーサブになれます！';
+        } else {
+             resultTitle = 'お客様に寄り添う！安心の【アドバイザーメカニック】';
+             resultDesc = 'メカニックの知識を持ちながら、お客様の不安を笑顔で解消できる、貴重な架け橋になれるタイプです。あなたに点検してほしい、というファンができるでしょう！';
+        }
+
+        // インジケーターを隠す
+        document.getElementById('step-indicator').style.display = 'none';
+        
+        // 結果カードを表示
+        setTimeout(() => {
+            document.getElementById('result-area').classList.add('active');
+            document.getElementById('result-title').innerText = resultTitle;
+            document.getElementById('result-desc').innerText = resultDesc;
+        }, 50);
+    }
+
+    function resetDiag() {
+        answers = [];
+        // 全体をリセット
+        document.getElementById('result-area').classList.remove('active');
+        // 少し待ってから最初の質問とインジケーターを表示
+        setTimeout(() => {
+            document.getElementById('step-indicator').style.display = 'flex';
+            document.getElementById('q1').classList.add('active');
+            document.getElementById('cog1').classList.add('active');
+            document.getElementById('cog2').classList.remove('active');
+            document.getElementById('cog3').classList.remove('active');
+        }, 300);
+    }
+</script>
+
+</body>
+</html>
